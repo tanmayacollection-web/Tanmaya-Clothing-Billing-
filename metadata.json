@@ -1,0 +1,6 @@
+{
+  "name": "Tanmaya Clothing — Billing & POS Software",
+  "description": "Fast GST tax invoice billing software, retail POS, and sales dashboard for Tanmaya Clothing.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
