@@ -5,8 +5,7 @@
 
 [build.environment]
   NODE_VERSION = "20"
-  NPM_FLAGS = "--include=dev"
-  NODE_ENV = "development"
+  NPM_FLAGS = "--legacy-peer-deps"
   CI = "false"
 
 [[redirects]]
