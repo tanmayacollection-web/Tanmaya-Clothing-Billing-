@@ -314,6 +314,5 @@ export function buildWhatsAppShareUrl(invoice: {
         ? '91' + rawDigits
         : rawDigits
       : '';
-  const phoneParam = target ? `phone=${target}&` : '';
-  return `whatsapp://send?${phoneParam}text=${encodeURIComponent(msg)}`;
+  return `https://wa.me/${target}?text=${encodeURIComponent(msg)}`;
 }
