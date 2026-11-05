@@ -11,7 +11,8 @@ import {
   DEFAULT_STORE_SETTINGS,
   calcInvoiceTotals,
   generateNewInvoiceNo,
-  buildWhatsAppShareUrl
+  buildWhatsAppShareUrl,
+  decodeBillFromUrl
 } from './utils/billing';
 import { INITIAL_SEED_INVOICES } from './data/seedData';
 import { Header } from './components/Header';
@@ -21,12 +22,83 @@ import { Dashboard } from './components/Dashboard';
 import { BillsHistory } from './components/BillsHistory';
 import { SettingsTab } from './components/SettingsTab';
 import { ViewBillModal } from './components/ViewBillModal';
-import { CheckCircle2, AlertCircle } from 'lucide-react';
+import { CheckCircle2, AlertCircle, Download } from 'lucide-react';
 
 const STORAGE_INVOICES_KEY = 'tanmaya_invoices_v1';
 const STORAGE_STORE_KEY = 'tanmaya_store_settings_v1';
 
 export default function App() {
+  // Check if opened via a shared customer bill link (/bill?d=... or ?bill=...)
+  const sharedBill = useMemo(() => {
+    if (typeof window === 'undefined') return null;
+    const params = new URLSearchParams(window.location.search);
+    const param = params.get('d') || params.get('data') || params.get('bill');
+    return param ? decodeBillFromUrl(param) : null;
+  }, []);
+
+  const isBillRoute =
+    typeof window !== 'undefined' && window.location.pathname.startsWith('/bill');
+
+  if (sharedBill || isBillRoute) {
+    if (!sharedBill) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-[#f3f1ec] text-[#0b0b0c] p-4">
+          <div className="bg-white border border-black/10 rounded-xl p-6 max-w-md w-full text-center shadow-sm">
+            <h1 className="text-lg font-extrabold uppercase tracking-wide mb-2">
+              {DEFAULT_STORE_SETTINGS.shopName}
+            </h1>
+            <p className="text-sm text-black/70">
+              Invalid or incomplete bill link. Please ask the store to share the bill link again.
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="min-h-screen flex flex-col bg-[#f3f1ec] text-[#0b0b0c]">
+        {/* Upper side: Download PDF bar */}
+        <header className="sticky top-0 z-30 bg-[#0b0b0c] text-white px-4 py-3 shadow-md print:hidden">
+          <div className="max-w-4xl mx-auto flex items-center justify-between gap-3">
+            <div>
+              <div className="text-sm sm:text-base font-extrabold tracking-wide uppercase">
+                {sharedBill.store?.shopName || 'TANMAYA CLOTHING'}
+              </div>
+              <div className="text-[11px] text-white/70">
+                Invoice #{sharedBill.invNo} • {sharedBill.custName || 'Customer'}
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => window.print()}
+              className="inline-flex items-center gap-2 bg-[#1a8a3a] hover:bg-[#15702f] text-white font-bold text-xs sm:text-sm uppercase tracking-wider px-4 py-2.5 rounded-lg shadow-lg transition-colors cursor-pointer"
+            >
+              <Download className="w-4 h-4" />
+              Download PDF
+            </button>
+          </div>
+        </header>
+
+        {/* Down section: Customer's Bill */}
+        <main className="flex-1 py-6 px-2 sm:px-4 flex justify-center items-start">
+          <div className="w-full max-w-[820px]">
+            <InvoicePreview
+              invNo={sharedBill.invNo}
+              date={sharedBill.date}
+              buyerState={sharedBill.buyerState}
+              custName={sharedBill.custName || ''}
+              custPhone={sharedBill.custPhone || ''}
+              custGstin={sharedBill.custGstin || ''}
+              custAddress={sharedBill.custAddress || ''}
+              items={sharedBill.items}
+              store={sharedBill.store || DEFAULT_STORE_SETTINGS}
+            />
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   const [activeTab, setActiveTab] = useState<'billing' | 'dashboard' | 'history' | 'settings'>('billing');
 
   const [store, setStore] = useState<StoreSettings>(() => {
@@ -202,8 +274,13 @@ export default function App() {
     const totals = calcInvoiceTotals(items, buyerState);
     const url = buildWhatsAppShareUrl({
       invNo: currentBillNo,
+      date,
+      buyerState,
+      paymentMode,
       custName,
       custPhone,
+      custGstin,
+      custAddress,
       items,
       taxable: totals.taxable,
       totalGst: totals.totalGst,

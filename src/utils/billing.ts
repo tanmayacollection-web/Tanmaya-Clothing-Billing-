@@ -154,13 +154,130 @@ export function generateNewInvoiceNo(existingInvoices: { invNo: string }[] = [])
   return 'TC-' + String(next).padStart(3, '0');
 }
 
+export interface ShareableBillPayload {
+  invNo: string;
+  date: string;
+  buyerState: 'same' | 'diff';
+  paymentMode: 'Cash' | 'Card' | 'Online';
+  custName?: string;
+  custPhone?: string;
+  custGstin?: string;
+  custAddress?: string;
+  items: InvoiceItem[];
+  store: StoreSettings;
+}
+
 /**
- * WhatsApp share matching original HTML share logic
+ * Encode bill payload into a compact, URL-safe base64url string
+ */
+export function encodeBillToUrl(payload: ShareableBillPayload): string {
+  const compact = [
+    payload.invNo,
+    payload.date,
+    payload.buyerState === 'diff' ? 'd' : 's',
+    payload.paymentMode,
+    payload.custName || '',
+    payload.custPhone || '',
+    payload.custGstin || '',
+    payload.custAddress || '',
+    payload.items.map((it) => [
+      it.name || '',
+      it.qty,
+      it.mrp || 0,
+      it.sellingPrice,
+      it.gst,
+    ]),
+  ];
+  const json = JSON.stringify(compact);
+  const bytes = new TextEncoder().encode(json);
+  let binary = '';
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+/**
+ * Decode bill payload from a compact or legacy URL-safe base64url string
+ */
+export function decodeBillFromUrl(encoded: string): ShareableBillPayload | null {
+  try {
+    let base64 = encoded.replace(/-/g, '+').replace(/_/g, '/');
+    while (base64.length % 4) {
+      base64 += '=';
+    }
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    const json = new TextDecoder().decode(bytes);
+    const parsed = JSON.parse(json);
+
+    // Compact array format
+    if (Array.isArray(parsed) && parsed.length >= 9) {
+      const [invNo, date, stateCode, paymentMode, custName, custPhone, custGstin, custAddress, rawItems] = parsed;
+      const items: InvoiceItem[] = Array.isArray(rawItems)
+        ? rawItems.map((row: any, idx: number) => ({
+            id: `shared-${idx}`,
+            name: row[0] || '',
+            qty: Number(row[1]) || 1,
+            mrp: Number(row[2]) > 0 ? Number(row[2]) : undefined,
+            sellingPrice: Number(row[3]) || 0,
+            gst: Number(row[4]) || 0,
+          }))
+        : [];
+      return {
+        invNo: String(invNo),
+        date: String(date),
+        buyerState: stateCode === 'd' ? 'diff' : 'same',
+        paymentMode: paymentMode || 'Cash',
+        custName: custName || '',
+        custPhone: custPhone || '',
+        custGstin: custGstin || '',
+        custAddress: custAddress || '',
+        items,
+        store: DEFAULT_STORE_SETTINGS,
+      };
+    }
+
+    // Legacy object format
+    if (parsed && parsed.invNo && Array.isArray(parsed.items)) {
+      return {
+        ...parsed,
+        store: parsed.store || DEFAULT_STORE_SETTINGS,
+      } as ShareableBillPayload;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Build the short public shareable bill link on tanmayabillingsoftware.netlify.app
+ */
+export function buildShareableBillLink(payload: ShareableBillPayload): string {
+  const origin =
+    typeof window !== 'undefined' && window.location.hostname.endsWith('netlify.app')
+      ? window.location.origin
+      : 'https://tanmayabillingsoftware.netlify.app';
+  const encoded = encodeBillToUrl(payload);
+  return `${origin}/bill?d=${encoded}`;
+}
+
+/**
+ * WhatsApp share with direct clickable bill link
  */
 export function buildWhatsAppShareUrl(invoice: {
   invNo: string;
+  date?: string;
+  buyerState?: 'same' | 'diff';
+  paymentMode?: 'Cash' | 'Card' | 'Online';
   custName?: string;
   custPhone?: string;
+  custGstin?: string;
+  custAddress?: string;
   items: InvoiceItem[];
   taxable: number;
   totalGst: number;
@@ -172,25 +289,24 @@ export function buildWhatsAppShareUrl(invoice: {
   const custName = invoice.custName || 'Customer';
   const invNo = invoice.invNo;
 
-  let msg = `*TANMAYA CLOTHING — INVOICE ${invNo}*\n\n`;
-  msg += `Customer: ${custName}\n\n`;
-
-  invoice.items.forEach((it) => {
-    const res = calcItemAmounts(it);
-    const itemName = it.name || 'Item';
-    if (res.mrp > res.rate && res.discount > 0) {
-      msg += `${itemName} x${it.qty} — ~₹${res.mrp}~ ₹${res.rate.toFixed(0)} (${res.discount}% off) = ₹${res.taxable.toFixed(0)}\n`;
-    } else {
-      msg += `${itemName} x${it.qty} — ₹${res.taxable.toFixed(0)}\n`;
-    }
+  const billLink = buildShareableBillLink({
+    invNo,
+    date: invoice.date || new Date().toISOString().slice(0, 10),
+    buyerState: invoice.buyerState || 'same',
+    paymentMode: invoice.paymentMode || 'Cash',
+    custName: invoice.custName,
+    custPhone: invoice.custPhone,
+    custGstin: invoice.custGstin,
+    custAddress: invoice.custAddress,
+    items: invoice.items,
+    store: invoice.store,
   });
 
-  if (invoice.totalSavings > 0) {
-    msg += `\nYou saved: ₹${invoice.totalSavings.toFixed(0)}`;
-  }
-
-  msg += `\nTaxable: ₹${invoice.taxable.toFixed(0)}\nGST: ₹${invoice.totalGst.toFixed(0)}\n*Total: ₹${invoice.grandTotal.toFixed(0)}* (incl. all taxes)\n\n`;
-  msg += `Thank you for shopping with ${invoice.store.shopName}!\n${invoice.store.phone} | ${invoice.store.instagram || '@tanmayaclothing'}`;
+  let msg = `*${invoice.store.shopName} — INVOICE ${invNo}*\n`;
+  msg += `Hello ${custName},\n`;
+  msg += `Thank you for shopping with us! Your bill total is *₹${invoice.grandTotal.toFixed(0)}*.\n\n`;
+  msg += `View & Download your PDF Bill here:\n${billLink}\n\n`;
+  msg += `${invoice.store.phone} | ${invoice.store.instagram || '@tanmayaclothing'}`;
 
   const target =
     custPhone.length >= 10
