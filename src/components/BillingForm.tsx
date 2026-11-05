@@ -178,20 +178,6 @@ export const BillingForm: React.FC<BillingFormProps> = ({
               className="w-full bg-[#0b0b0c] border border-[#2a2a2c] text-white p-2.5 text-sm rounded focus:outline-none focus:border-[#d94f30]"
             />
           </div>
-
-          <div className="form-field">
-            <label className="block text-[11px] text-[#9a9a9f] uppercase tracking-wider mb-1 font-medium">
-              Place of Supply (Buyer&apos;s State)
-            </label>
-            <select
-              value={buyerState}
-              onChange={(e) => setBuyerState(e.target.value as 'same' | 'diff')}
-              className="w-full bg-[#0b0b0c] border border-[#2a2a2c] text-white p-2.5 text-sm rounded focus:outline-none focus:border-[#d94f30]"
-            >
-              <option value="same">Maharashtra (CGST + SGST)</option>
-              <option value="diff">Other State (IGST)</option>
-            </select>
-          </div>
         </div>
 
         {/* 3-Button Segmented Selector for Payment Mode */}

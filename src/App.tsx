@@ -24,7 +24,7 @@ import { SettingsTab } from './components/SettingsTab';
 import { ViewBillModal } from './components/ViewBillModal';
 import { CheckCircle2, AlertCircle, Download } from 'lucide-react';
 
-const STORAGE_INVOICES_KEY = 'tanmaya_invoices_v1';
+const STORAGE_INVOICES_KEY = 'tanmaya_invoices_v2';
 const STORAGE_STORE_KEY = 'tanmaya_store_settings_v1';
 
 export default function App() {
@@ -140,21 +140,12 @@ export default function App() {
   const [items, setItems] = useState<InvoiceItem[]>([
     {
       id: 'init-1',
-      name: 'Cotton Kurti',
+      name: '',
       qty: 1,
-      mrp: 899,
-      sellingPrice: 809,
-      discount: 10,
-      gst: 5,
-    },
-    {
-      id: 'init-2',
-      name: 'Designer Saree',
-      qty: 1,
-      mrp: 1899,
-      sellingPrice: 1804,
-      discount: 5,
-      gst: 12,
+      mrp: undefined,
+      sellingPrice: 0,
+      discount: 0,
+      gst: 0,
     },
   ]);
 

@@ -101,15 +101,6 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({
             </div>
           )}
         </div>
-
-        <div className="flex-1 text-right">
-          <h4 className="text-[11px] uppercase tracking-wider text-[#6b6b70] mb-1.5 font-bold">
-            Place of Supply
-          </h4>
-          <div className="text-[13px] font-bold text-[#0b0b0c]">
-            {buyerState === 'same' ? 'Maharashtra' : 'Other State'}
-          </div>
-        </div>
       </div>
 
       {/* Non-sliding Full Width Items Table */}
@@ -181,23 +172,14 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({
             <span>{fmt(totals.taxable)}</span>
           </div>
 
-          {buyerState === 'same' ? (
-            <>
-              <div className="flex justify-between py-1.5 text-[13px] text-[#444]">
-                <span>CGST</span>
-                <span>{fmt(totals.cgst)}</span>
-              </div>
-              <div className="flex justify-between py-1.5 text-[13px] text-[#444]">
-                <span>SGST</span>
-                <span>{fmt(totals.sgst)}</span>
-              </div>
-            </>
-          ) : (
-            <div className="flex justify-between py-1.5 text-[13px] text-[#444]">
-              <span>IGST</span>
-              <span>{fmt(totals.igst)}</span>
-            </div>
-          )}
+          <div className="flex justify-between py-1.5 text-[13px] text-[#444]">
+            <span>CGST</span>
+            <span>{fmt(totals.cgst)}</span>
+          </div>
+          <div className="flex justify-between py-1.5 text-[13px] text-[#444]">
+            <span>SGST</span>
+            <span>{fmt(totals.sgst)}</span>
+          </div>
 
           <div className="flex justify-between border-t-2 border-[#0b0b0c] mt-1.5 pt-2.5 text-lg font-extrabold text-[#0b0b0c]">
             <span>Grand Total</span>
