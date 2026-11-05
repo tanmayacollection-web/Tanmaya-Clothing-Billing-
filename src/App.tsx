@@ -258,28 +258,80 @@ export default function App() {
   };
 
   const handleShareWhatsApp = () => {
-    if (items.length === 0) {
-      showToast('Add at least one item first.', 'error');
+    if (items.length === 0 || items.every((i) => !i.sellingPrice)) {
+      showToast('Please add at least one item with a valid selling price.', 'error');
       return;
     }
+
     const totals = calcInvoiceTotals(items, buyerState);
-    const url = buildWhatsAppShareUrl({
+    const newRecord: InvoiceRecord = {
+      id: 'inv-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4),
       invNo: currentBillNo,
-      date,
+      date: date || new Date().toISOString().slice(0, 10),
       buyerState,
       paymentMode,
-      custName,
-      custPhone,
-      custGstin,
-      custAddress,
-      items,
+      custName: custName.trim() || 'Customer Name',
+      custPhone: custPhone.trim(),
+      custGstin: custGstin.trim(),
+      custAddress: custAddress.trim(),
+      items: [...items],
+      taxable: totals.taxable,
+      cgst: totals.cgst,
+      sgst: totals.sgst,
+      igst: totals.igst,
+      totalGst: totals.totalGst,
+      totalSavings: totals.totalSavings,
+      grandTotal: totals.grandTotal,
+      savedAt: new Date().toISOString(),
+    };
+
+    // Automatically record the bill in Dashboard & Bills History
+    setInvoices((prev) => [...prev, newRecord]);
+    showToast(`Bill #${newRecord.invNo} saved & opening WhatsApp!`);
+
+    const url = buildWhatsAppShareUrl({
+      invNo: newRecord.invNo,
+      date: newRecord.date,
+      buyerState: newRecord.buyerState,
+      paymentMode: newRecord.paymentMode,
+      custName: newRecord.custName,
+      custPhone: newRecord.custPhone,
+      custGstin: newRecord.custGstin,
+      custAddress: newRecord.custAddress,
+      items: newRecord.items,
       taxable: totals.taxable,
       totalGst: totals.totalGst,
       totalSavings: totals.totalSavings,
       grandTotal: totals.grandTotal,
       store,
     });
-    window.open(url, '_blank');
+
+    // Reset form for the next bill
+    setCustName('');
+    setCustPhone('');
+    setCustGstin('');
+    setCustAddress('');
+    setPaymentMode('Cash');
+    setItems([
+      {
+        id: 'new-' + Date.now(),
+        name: '',
+        qty: 1,
+        mrp: undefined,
+        sellingPrice: 0,
+        discount: 0,
+        gst: 0,
+      },
+    ]);
+
+    // Use anchor click so Web2App / desktop wrappers don't block window.open
+    const link = document.createElement('a');
+    link.href = url;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const handleDeleteInvoice = (id: string) => {

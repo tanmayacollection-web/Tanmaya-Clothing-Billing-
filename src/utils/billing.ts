@@ -285,7 +285,7 @@ export function buildWhatsAppShareUrl(invoice: {
   grandTotal: number;
   store: StoreSettings;
 }): string {
-  const custPhone = (invoice.custPhone || '').replace(/\D/g, '');
+  const rawDigits = (invoice.custPhone || '').replace(/\D/g, '').replace(/^0+/, '');
   const custName = invoice.custName || 'Customer';
   const invNo = invoice.invNo;
 
@@ -309,10 +309,11 @@ export function buildWhatsAppShareUrl(invoice: {
   msg += `${invoice.store.phone} | ${invoice.store.instagram || '@tanmayaclothing'}`;
 
   const target =
-    custPhone.length >= 10
-      ? custPhone.length === 10
-        ? '91' + custPhone
-        : custPhone
+    rawDigits.length >= 10
+      ? rawDigits.length === 10
+        ? '91' + rawDigits
+        : rawDigits
       : '';
-  return `https://wa.me/${target}?text=${encodeURIComponent(msg)}`;
+  const phoneParam = target ? `phone=${target}&` : '';
+  return `whatsapp://send?${phoneParam}text=${encodeURIComponent(msg)}`;
 }
